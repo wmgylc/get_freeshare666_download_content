@@ -6,6 +6,9 @@
 // @author       You
 // @match        *://*/*
 // @grant        GM_registerMenuCommand
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_notification
 // @grant        window.open
 // ==/UserScript==
 
@@ -357,12 +360,42 @@
         );
         
         if (copiedElements.length === validCodes.length && validCodes.length > 0) {
-            console.log('所有验证码都已复制，10秒后关闭网页');
-            showNotification('所有验证码已复制完成，10秒后自动关闭网页');
+            console.log('所有验证码都已复制');
+            const autoCloseEnabled = GM_getValue('autoCloseEnabled', true);
             
-            setTimeout(() => {
-                window.close();
-            }, 10000);
+            if (autoCloseEnabled) {
+                 console.log('自动关闭已启用，10秒后关闭网页');
+                 showNotification('所有验证码已复制完成，10秒后自动关闭网页');
+                 
+                 setTimeout(() => {
+                      // 获取页面标题和URL
+                      const pageTitle = document.title || '未知页面';
+                      const currentUrl = window.location.href;
+                      
+                      // 发送浏览器通知
+                      if (typeof GM_notification !== 'undefined') {
+                          GM_notification({
+                        title: '页面自动关闭通知',
+                        text: `${pageTitle} 已打开所有下载页面，自动关闭\n点击此通知可重新打开页面`,
+                        timeout: 5000,
+                              onclick: function() {
+                                  console.log('通知被点击，重新打开页面:', currentUrl);
+                                  // 重新打开页面
+                                  if (typeof window !== 'undefined' && window.open) {
+                                      window.open(currentUrl, '_blank');
+                                  } else if (typeof GM_openInTab !== 'undefined') {
+                                      GM_openInTab(currentUrl, { active: true });
+                                  }
+                              }
+                          });
+                      }
+                      
+                      window.close();
+                  }, 10000);
+             } else {
+                console.log('自动关闭已禁用');
+                showNotification('所有验证码已复制完成');
+            }
         }
     }
 
@@ -511,15 +544,95 @@
             clear: both;
         `;
         
-        // 创建提示文本
-        const tipText = document.createElement('div');
+        // 创建提示文本和开关容器
+        const tipContainer = document.createElement('div');
+        tipContainer.style.cssText = `
+            margin: 0 0 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        `;
+        
+        const tipText = document.createElement('span');
         tipText.textContent = '打开所有网站后，网页将在 10 秒后关闭';
         tipText.style.cssText = `
-            margin: 0 0 20px 0;
             color: #333;
             font-size: 13px;
-            text-align: center;
         `;
+        
+        // 创建自动关闭开关
+        const autoCloseEnabled = GM_getValue('autoCloseEnabled', true);
+        const switchContainer = document.createElement('div');
+        switchContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        `;
+        
+        const switchLabel = document.createElement('span');
+        switchLabel.textContent = '自动关闭:';
+        switchLabel.style.cssText = `
+            font-size: 12px;
+            color: #666;
+        `;
+        
+        const switchButton = document.createElement('div');
+         switchButton.style.cssText = `
+             width: 50px;
+             height: 30px;
+             border-radius: 15px;
+             position: relative;
+             transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+             cursor: pointer;
+             background: ${autoCloseEnabled ? '#34C759' : '#E5E5EA'};
+             box-shadow: inset 0 0 0 1px ${autoCloseEnabled ? 'rgba(52, 199, 89, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+         `;
+         
+         const switchSlider = document.createElement('div');
+         switchSlider.style.cssText = `
+             width: 26px;
+             height: 26px;
+             border-radius: 50%;
+             background: white;
+             position: absolute;
+             top: 2px;
+             transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+             transform: translateX(${autoCloseEnabled ? '22px' : '2px'});
+             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.2);
+         `;
+        
+        switchButton.appendChild(switchSlider);
+        
+        // 开关点击事件
+        switchContainer.addEventListener('click', () => {
+            const currentState = GM_getValue('autoCloseEnabled', true);
+            const newState = !currentState;
+            GM_setValue('autoCloseEnabled', newState);
+            
+            // 更新开关样式
+             switchButton.style.background = newState ? '#34C759' : '#E5E5EA';
+             switchButton.style.boxShadow = `inset 0 0 0 1px ${newState ? 'rgba(52, 199, 89, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`;
+             switchSlider.style.transform = `translateX(${newState ? '22px' : '2px'})`;
+            
+            // 更新提示文本
+            tipText.textContent = newState ? 
+                '打开所有网站后，网页将在 10 秒后关闭' : 
+                '打开所有网站后，网页不会自动关闭';
+            
+            showNotification(newState ? '已启用自动关闭' : '已禁用自动关闭');
+        });
+        
+        // 根据当前状态更新提示文本
+        tipText.textContent = autoCloseEnabled ? 
+            '打开所有网站后，网页将在 10 秒后关闭' : 
+            '打开所有网站后，网页不会自动关闭';
+        
+        switchContainer.appendChild(switchLabel);
+        switchContainer.appendChild(switchButton);
+        tipContainer.appendChild(tipText);
+        tipContainer.appendChild(switchContainer);
         
         // 创建链接列表容器
         const linkContainer = document.createElement('div');
@@ -608,7 +721,7 @@
         
         modal.appendChild(closeBtn);
         modal.appendChild(title);
-        modal.appendChild(tipText);
+        modal.appendChild(tipContainer);
         modal.appendChild(linkContainer);
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
