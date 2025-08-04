@@ -372,6 +372,9 @@
                       const pageTitle = document.title || '未知页面';
                       const currentUrl = window.location.href;
                       
+                      // 显示网页关闭通知
+                      showNotification(`${pageTitle} 被关闭`);
+                      
                       // 发送浏览器通知
                       if (typeof GM_notification !== 'undefined') {
                           GM_notification({
@@ -580,9 +583,9 @@
         
         const switchButton = document.createElement('div');
          switchButton.style.cssText = `
-             width: 50px;
-             height: 30px;
-             border-radius: 15px;
+             width: 24px;
+             height: 13px;
+             border-radius: 6.5px;
              position: relative;
              transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
              cursor: pointer;
@@ -592,15 +595,15 @@
          
          const switchSlider = document.createElement('div');
          switchSlider.style.cssText = `
-             width: 26px;
-             height: 26px;
+             width: 9px;
+             height: 9px;
              border-radius: 50%;
              background: white;
              position: absolute;
              top: 2px;
              transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-             transform: translateX(${autoCloseEnabled ? '22px' : '2px'});
-             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.2);
+             transform: translateX(${autoCloseEnabled ? '13px' : '2px'});
+             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
          `;
         
         switchButton.appendChild(switchSlider);
@@ -614,7 +617,7 @@
             // 更新开关样式
              switchButton.style.background = newState ? '#34C759' : '#E5E5EA';
              switchButton.style.boxShadow = `inset 0 0 0 1px ${newState ? 'rgba(52, 199, 89, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`;
-             switchSlider.style.transform = `translateX(${newState ? '22px' : '2px'})`;
+             switchSlider.style.transform = `translateX(${newState ? '13px' : '2px'})`;
             
             // 更新提示文本
             tipText.textContent = newState ? 
