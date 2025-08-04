@@ -8,7 +8,6 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_notification
 // @grant        window.open
 // ==/UserScript==
 
@@ -23,9 +22,9 @@
             // 直接显示已处理的结果
             updateResultsDisplay();
         } else if (isProcessing) {
-            showNotification('正在后台处理中，请稍候...');
+            console.log('正在后台处理中，请稍候...');
         } else {
-            showNotification('当前页面未找到指定的下载链接');
+            console.log('当前页面未找到指定的下载链接');
         }
     }
     
@@ -106,53 +105,7 @@
         return uniqueUrls;
     }
 
-    // 显示通知的函数
-    function showNotification(message) {
-        // 创建自定义通知
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            max-width: 300px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease-out;
-        `;
-        
-        // 添加动画样式
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        // 3秒后自动移除通知
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease-in';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 300);
-        }, 3000);
-    }
+
 
     // 存储所有结果的数组
     let allResults = [];
@@ -331,7 +284,7 @@
     // 复制文本到剪贴板的函数
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
-            showNotification(`验证码已复制: ${text}`);
+            console.log(`验证码已复制: ${text}`);
             checkAllCodesCopied();
         }).catch(err => {
             console.error('复制失败:', err);
@@ -342,7 +295,7 @@
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
-            showNotification(`验证码已复制: ${text}`);
+            console.log(`验证码已复制: ${text}`);
             checkAllCodesCopied();
         });
     }
@@ -365,39 +318,20 @@
             
             if (autoCloseEnabled) {
                  console.log('自动关闭已启用，10秒后关闭网页');
-                 showNotification('所有验证码已复制完成，10秒后自动关闭网页');
+                 console.log('所有验证码已复制完成，10秒后自动关闭网页');
                  
                  setTimeout(() => {
                       // 获取页面标题和URL
                       const pageTitle = document.title || '未知页面';
                       const currentUrl = window.location.href;
                       
-                      // 显示网页关闭通知
-                      showNotification(`${pageTitle} 被关闭`);
-                      
-                      // 发送浏览器通知
-                      if (typeof GM_notification !== 'undefined') {
-                          GM_notification({
-                        title: '页面自动关闭通知',
-                        text: `${pageTitle} 已打开所有下载页面，自动关闭\n点击此通知可重新打开页面`,
-                        timeout: 5000,
-                              onclick: function() {
-                                  console.log('通知被点击，重新打开页面:', currentUrl);
-                                  // 重新打开页面
-                                  if (typeof window !== 'undefined' && window.open) {
-                                      window.open(currentUrl, '_blank');
-                                  } else if (typeof GM_openInTab !== 'undefined') {
-                                      GM_openInTab(currentUrl, { active: true });
-                                  }
-                              }
-                          });
-                      }
+                      console.log(`${pageTitle} 被关闭`);
                       
                       window.close();
                   }, 10000);
              } else {
                 console.log('自动关闭已禁用');
-                showNotification('所有验证码已复制完成');
+                console.log('所有验证码已复制完成');
             }
         }
     }
@@ -624,7 +558,7 @@
                 '打开所有网站后，网页将在 10 秒后关闭' : 
                 '打开所有网站后，网页不会自动关闭';
             
-            showNotification(newState ? '已启用自动关闭' : '已禁用自动关闭');
+            console.log(newState ? '已启用自动关闭' : '已禁用自动关闭');
         });
         
         // 根据当前状态更新提示文本
