@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         百度网盘密码自动填入助手
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  自动监控剪贴板中的百度网盘提取码，并在百度网盘页面自动填入密码
+// @version      1.1
+// @description  自动监控剪贴板中的百度网盘提取码，在百度网盘页面自动填入密码并点击保存到网盘
 // @author       Assistant
 // @match        *://pan.baidu.com/s/*
 // @match        *://*.pan.baidu.com/s/*
@@ -18,12 +18,15 @@
         passwordRegex: /^[a-zA-Z0-9]{4}$/,
         checkInterval: 1000,
         passwordSelector: 'input[placeholder*="提取码"], input[placeholder*="密码"], input.pickpw, input#pwd',
-        submitSelector: 'button:contains("提取文件"), button:contains("确定"), .btn-primary, .g-button-blue'
+        submitSelector: 'button:contains("提取文件"), button:contains("确定"), .btn-primary, .g-button-blue',
+        saveSelector: 'button:contains("保存到网盘"), .save-button, .btn-save, [data-button-id="b5"]'
     };
     
     // 全局变量
     let lastClipboardContent = '';
     let isBaiduProcessing = false;
+    let isWaitingForSave = false;
+    let saveCheckInterval = null;
     
     // ==================== 百度网盘密码助手功能函数 ====================
     
@@ -93,6 +96,31 @@
         return null;
     }
     
+    // 查找保存到网盘按钮
+    function findSaveButton() {
+        const selectors = BAIDU_CONFIG.saveSelector.split(', ');
+        
+        for (const selector of selectors) {
+            if (selector.includes(':contains')) {
+                // 处理包含文本的选择器
+                const text = selector.match(/\"([^\"]+)\"/)[1];
+                const buttons = document.querySelectorAll('button');
+                for (const button of buttons) {
+                    if (button.textContent.includes(text) && button.offsetParent !== null) {
+                        return button;
+                    }
+                }
+            } else {
+                const button = document.querySelector(selector);
+                if (button && button.offsetParent !== null) {
+                    return button;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
     // 填入密码并提交
     function fillPassword(password) {
         if (isBaiduProcessing) return;
@@ -123,6 +151,9 @@
                 console.log('找到提交按钮，准备点击');
                 submitButton.click();
                 showBaiduNotification('已自动点击提取按钮');
+                
+                // 开始监控保存到网盘按钮
+                startSaveButtonMonitoring();
             } else {
                 console.log('未找到提交按钮');
             }
@@ -132,6 +163,49 @@
                 isBaiduProcessing = false;
             }, 2000);
         }, 500);
+    }
+    
+    // 开始监控保存到网盘按钮
+    function startSaveButtonMonitoring() {
+        if (isWaitingForSave) return;
+        
+        isWaitingForSave = true;
+        console.log('开始监控保存到网盘按钮...');
+        
+        let attempts = 0;
+        const maxAttempts = 30; // 最多尝试30次，每次间隔1秒
+        
+        saveCheckInterval = setInterval(() => {
+            attempts++;
+            
+            const saveButton = findSaveButton();
+            if (saveButton) {
+                console.log('找到保存到网盘按钮，准备点击');
+                saveButton.click();
+                showBaiduNotification('已自动点击保存到网盘按钮');
+                
+                // 停止监控
+                clearInterval(saveCheckInterval);
+                isWaitingForSave = false;
+                return;
+            }
+            
+            // 超过最大尝试次数，停止监控
+            if (attempts >= maxAttempts) {
+                console.log('未找到保存到网盘按钮，停止监控');
+                clearInterval(saveCheckInterval);
+                isWaitingForSave = false;
+            }
+        }, 1000);
+    }
+    
+    // 停止保存按钮监控
+    function stopSaveButtonMonitoring() {
+        if (saveCheckInterval) {
+            clearInterval(saveCheckInterval);
+            saveCheckInterval = null;
+        }
+        isWaitingForSave = false;
     }
     
     // 显示百度网盘通知
