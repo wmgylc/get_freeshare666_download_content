@@ -1,20 +1,75 @@
 // ==UserScript==
-// @name         立即下载按钮点击器
+// @name         下载按钮点击器
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  右键菜单添加按钮，自动点击页面中的"立即下载"链接
+// @version      1.3
+// @description  自动识别并点击页面中的下载按钮
 // @author       You
+// @match        *://www.freeshare666.com/*
+// @match        *://freeshare666.com/*
 // @match        *://*/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        window.open
+// @grant        GM_notification
+// @grant        GM_setClipboard
+// @grant        unsafeWindow
+// @run-at       document-end
+// @noframes
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // 删除菜单命令，改为页面按钮
+    GM_notification({
+        text: '下载按钮点击器脚本已加载 v1.3',
+        title: '脚本启动',
+        timeout: 3000
+    });
+    console.log('=== 下载按钮点击器脚本开始加载 ===');
+    console.log('当前页面URL:', window.location.href);
+    console.log('脚本版本: 1.3');
+    
+    // 检查油猴环境
+    console.log('GM_registerMenuCommand 可用:', typeof GM_registerMenuCommand !== 'undefined');
+    console.log('GM_setValue 可用:', typeof GM_setValue !== 'undefined');
+    console.log('GM_getValue 可用:', typeof GM_getValue !== 'undefined');
+    console.log('GM_setClipboard 可用:', typeof GM_setClipboard !== 'undefined');
+    
+    // ==================== 全局变量声明 ====================
+    // 存储所有结果的数组
+    let allResults = [];
+    // 处理状态标志
+    let isProcessing = false;
+
+    // ==================== 右键菜单注册 ====================
+    // 注册右键菜单命令（只显示下载结果）
+    try {
+        GM_registerMenuCommand('📋 显示下载结果', () => {
+            if (allResults.length > 0) {
+                updateResultsDisplay();
+            } else {
+                alert('暂无下载结果，请先点击"立即下载"或等待后台处理完成');
+                GM_notification({
+                    text: '暂无下载结果，请等待处理完成',
+                    title: '提示',
+                    timeout: 3000
+                });
+            }
+        }, 'S');
+        console.log('✅ 右键菜单命令注册成功');
+        GM_notification({
+            text: '右键菜单已注册成功',
+            title: '功能就绪',
+            timeout: 2000
+        });
+    } catch (error) {
+        console.error('❌ 右键菜单命令注册失败:', error);
+        GM_notification({
+            text: '右键菜单注册失败: ' + error.message,
+            title: '错误',
+            timeout: 4000
+        });
+    }
 
     // 主要功能函数 - 显示结果
     function clickDownloadButtons() {
@@ -23,8 +78,18 @@
             updateResultsDisplay();
         } else if (isProcessing) {
             console.log('正在后台处理中，请稍候...');
+            GM_notification({
+                text: '正在后台处理中，请稍候...',
+                title: '处理状态',
+                timeout: 2000
+            });
         } else {
             console.log('当前页面未找到指定的下载链接');
+            GM_notification({
+                text: '当前页面未找到指定的下载链接',
+                title: '提示',
+                timeout: 3000
+            });
         }
     }
     
@@ -41,6 +106,11 @@
         
         if (downloadUrls.length > 0) {
             console.log(`后台找到 ${downloadUrls.length} 个下载链接，开始静默处理...`);
+            GM_notification({
+                text: `找到 ${downloadUrls.length} 个下载链接，开始处理...`,
+                title: '扫描结果',
+                timeout: 3000
+            });
             
             // 批量处理所有链接
             const promises = downloadUrls.map((url, index) => 
@@ -50,11 +120,26 @@
             try {
                 await Promise.all(promises);
                 console.log('后台处理完成，共处理', allResults.length, '个链接');
+                GM_notification({
+                    text: `处理完成，共处理 ${allResults.length} 个链接`,
+                    title: '处理完成',
+                    timeout: 4000
+                });
             } catch (error) {
                 console.error('后台处理出错:', error);
+                GM_notification({
+                    text: '后台处理出错: ' + error.message,
+                    title: '错误',
+                    timeout: 5000
+                });
             }
         } else {
             console.log('后台未找到包含"/wp-content/plugins/erphpdown/download.php"的链接');
+            GM_notification({
+                text: '未找到下载链接',
+                title: '扫描结果',
+                timeout: 3000
+            });
         }
         
         isProcessing = false;
@@ -106,12 +191,6 @@
     }
 
 
-
-    // 存储所有结果的数组
-    let allResults = [];
-    // 处理状态标志
-    let isProcessing = false;
-    
 
     // 静默获取HTML内容并提取验证码的函数
     async function fetchHtmlContentQuietly(originalUrl, index) {
@@ -285,9 +364,19 @@
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
             console.log(`验证码已复制: ${text}`);
+            GM_notification({
+                text: `验证码已复制: ${text}`,
+                title: '复制成功',
+                timeout: 2000
+            });
             checkAllCodesCopied();
         }).catch(err => {
             console.error('复制失败:', err);
+            GM_notification({
+                text: '复制失败，使用备用方法',
+                title: '警告',
+                timeout: 3000
+            });
             // 备用方法
             const textArea = document.createElement('textarea');
             textArea.value = text;
@@ -296,6 +385,11 @@
             document.execCommand('copy');
             document.body.removeChild(textArea);
             console.log(`验证码已复制: ${text}`);
+            GM_notification({
+                text: `验证码已复制: ${text}`,
+                title: '复制成功',
+                timeout: 2000
+            });
             checkAllCodesCopied();
         });
     }
@@ -314,11 +408,21 @@
         
         if (copiedElements.length === validCodes.length && validCodes.length > 0) {
             console.log('所有验证码都已复制');
+            GM_notification({
+                text: '所有验证码都已复制完成！',
+                title: '任务完成',
+                timeout: 3000
+            });
             const autoCloseEnabled = GM_getValue('autoCloseEnabled', true);
             
             if (autoCloseEnabled) {
                  console.log('自动关闭已启用，10秒后关闭网页');
                  console.log('所有验证码已复制完成，10秒后自动关闭网页');
+                 GM_notification({
+                     text: '10秒后自动关闭网页',
+                     title: '自动关闭',
+                     timeout: 10000
+                 });
                  
                  setTimeout(() => {
                       // 获取页面标题和URL
@@ -326,12 +430,22 @@
                       const currentUrl = window.location.href;
                       
                       console.log(`${pageTitle} 被关闭`);
+                      GM_notification({
+                          text: '网页即将关闭',
+                          title: '关闭提醒',
+                          timeout: 1000
+                      });
                       
                       window.close();
                   }, 10000);
              } else {
                 console.log('自动关闭已禁用');
                 console.log('所有验证码已复制完成');
+                GM_notification({
+                    text: '所有验证码已复制，自动关闭已禁用',
+                    title: '任务完成',
+                    timeout: 4000
+                });
             }
         }
     }
@@ -725,18 +839,61 @@
     function init() {
         console.log('立即下载按钮点击器已加载');
         
-        // 检查是否在指定网站
-        if (window.location.href.startsWith('https://www.freeshare666.com/archives')) {
+        // 检查是否在指定网站（更宽松的匹配条件）
+        const currentUrl = window.location.href;
+        const hostname = window.location.hostname;
+        const isTargetSite = hostname.includes('freeshare666.com') || 
+                            currentUrl.includes('freeshare666.com') ||
+                            currentUrl.startsWith('https://www.freeshare666.com') ||
+                            currentUrl.startsWith('https://freeshare666.com');
+        
+        console.log('当前域名:', hostname);
+        console.log('当前完整URL:', currentUrl);
+        console.log('是否为目标网站:', isTargetSite);
+        
+        if (isTargetSite) {
             console.log('在指定网站，创建按钮');
-            // 创建页面底部按钮
-            createBottomButton();
+            GM_notification({
+                text: '在目标网站，功能已激活',
+                title: '功能激活',
+                timeout: 3000
+            });
+            
+            try {
+                // 创建页面底部按钮
+                createBottomButton();
+                console.log('✅ 页面按钮创建成功');
+                GM_notification({
+                    text: '页面按钮已创建',
+                    title: '界面就绪',
+                    timeout: 2000
+                });
+            } catch (error) {
+                console.error('❌ 页面按钮创建失败:', error);
+                GM_notification({
+                    text: '页面按钮创建失败: ' + error.message,
+                    title: '错误',
+                    timeout: 4000
+                });
+            }
             
             // 延迟启动后台处理，确保页面完全加载
             setTimeout(() => {
+                GM_notification({
+                    text: '开始扫描下载链接...',
+                    title: '后台处理',
+                    timeout: 2000
+                });
                 backgroundProcess();
             }, 2000);
         } else {
             console.log('不在指定网站，跳过按钮创建');
+            console.log('目标网站: freeshare666.com');
+            GM_notification({
+                text: '脚本待机中，仅在freeshare666.com激活',
+                title: '待机状态',
+                timeout: 2000
+            });
         }
     }
 
